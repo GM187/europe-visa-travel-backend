@@ -122,3 +122,33 @@ export const seniorHealthWebhookAuth = createSharedSecretAuth({
   envName: "SENIORHEALTH_WEBHOOK_SECRET",
   label: "Senior Health webhook",
 });
+
+/**
+ * Auth for AffordablePlan lead intake (`x-affordableplan-signature`).
+ *
+ * The site's Next.js server route sends its secret verbatim, and only from the
+ * server -- the browser never sees it, so it is not a public key on a write
+ * endpoint. Same limit as the others: a static secret proves who is calling,
+ * not that the body was not altered on the way.
+ */
+export const affordablePlanWebhookAuth = createSharedSecretAuth({
+  header: "x-affordableplan-signature",
+  secret: () => env.AFFORDABLEPLAN_WEBHOOK_SECRET,
+  envName: "AFFORDABLEPLAN_WEBHOOK_SECRET",
+  label: "Affordable Plan webhook",
+});
+
+/**
+ * Auth for Explore Auto Insurance lead intake (`x-autoinsurance-signature`).
+ *
+ * The site is static HTML; its one server-side piece is a Vercel serverless
+ * function (`api/lead.js`) that holds this secret and forwards the form. The
+ * browser never sees it. Same limit as the others: a static secret proves who
+ * is calling, not that the body was not altered on the way.
+ */
+export const autoInsuranceWebhookAuth = createSharedSecretAuth({
+  header: "x-autoinsurance-signature",
+  secret: () => env.AUTOINSURANCE_WEBHOOK_SECRET,
+  envName: "AUTOINSURANCE_WEBHOOK_SECRET",
+  label: "Auto Insurance webhook",
+});

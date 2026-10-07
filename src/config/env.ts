@@ -110,6 +110,38 @@ const envSchema = z
     ),
 
     /**
+     * Shared secret the AffordablePlan site sends as
+     * `x-affordableplan-signature`.
+     *
+     * Its own value, distinct from `API_KEY` and from the other producers'
+     * secrets, for the reason each of those is distinct: a leak of one must not
+     * expose another surface, and rotating one must not cost a different site a
+     * release. Same blank-means-absent handling and 16-character floor. Outside
+     * production an unset secret leaves intake unauthenticated with a warning on
+     * every request; in production `affordablePlanWebhookAuth` fails closed with
+     * a 401, which is visible immediately without being an outage.
+     */
+    AFFORDABLEPLAN_WEBHOOK_SECRET: z.preprocess(
+      (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+      z.string().min(16, "AFFORDABLEPLAN_WEBHOOK_SECRET must be at least 16 characters.").optional(),
+    ),
+
+    /**
+     * Shared secret the Explore Auto Insurance site's serverless function sends
+     * as `x-autoinsurance-signature`.
+     *
+     * Its own value for the reason every producer has one: a leak or rotation
+     * of one must not touch another. Same blank-means-absent handling and
+     * 16-character floor. Outside production an unset secret leaves intake
+     * unauthenticated with a warning; in production `autoInsuranceWebhookAuth`
+     * fails closed with a 401.
+     */
+    AUTOINSURANCE_WEBHOOK_SECRET: z.preprocess(
+      (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+      z.string().min(16, "AUTOINSURANCE_WEBHOOK_SECRET must be at least 16 characters.").optional(),
+    ),
+
+    /**
      * Onyx utilization API. The key is sent as-is in the `Authorization`
      * header and never logged. Blank means absent: the endpoint then answers
      * 503 instead of calling Onyx with no credential.

@@ -10,6 +10,8 @@ import { requestId, requestIdOf } from "@/api/middleware/requestId";
 import { enquiriesRouter } from "@/api/routes/enquiries.routes";
 import { finalExpenseRouter } from "@/api/routes/finalexpense.routes";
 import { seniorHealthRouter } from "@/api/routes/seniorhealth.routes";
+import { affordablePlanRouter } from "@/api/routes/affordableplan.routes";
+import { autoInsuranceRouter } from "@/api/routes/autoinsurance.routes";
 import { leadsRouter } from "@/api/routes/leads.routes";
 import { onyxRouter } from "@/api/routes/onyx.routes";
 import { healthRouter } from "@/api/routes/health.routes";
@@ -18,6 +20,8 @@ import type { EnquiryService } from "@/services/enquiry.service";
 import type { FinalExpenseService } from "@/services/finalexpense.service";
 import type { LeadService } from "@/services/lead.service";
 import type { SeniorHealthService } from "@/services/seniorhealth.service";
+import type { AffordablePlanService } from "@/services/affordableplan.service";
+import type { AutoInsuranceService } from "@/services/autoinsurance.service";
 import type { OnyxClient } from "@/services/onyx.client";
 
 /**
@@ -31,6 +35,8 @@ export function createApp(
     leadService?: LeadService;
     finalExpenseService?: FinalExpenseService;
     seniorHealthService?: SeniorHealthService;
+    affordablePlanService?: AffordablePlanService;
+    autoInsuranceService?: AutoInsuranceService;
     onyxClient?: OnyxClient;
   } = {},
 ): Express {
@@ -106,6 +112,8 @@ export function createApp(
   /* Senior Health Benefits Medicare lead intake, namespaced by producer for
      the same reason: its own payload, its own credential, its own retention. */
   app.use("/api/v1/seniorhealth/leads", seniorHealthRouter(deps.seniorHealthService));
+  app.use("/api/v1/affordableplan/leads", affordablePlanRouter(deps.affordablePlanService));
+  app.use("/api/v1/autoinsurance/leads", autoInsuranceRouter(deps.autoInsuranceService));
   app.use("/api/v1/onyx", onyxRouter(deps.onyxClient));
 
   app.use(notFoundHandler);

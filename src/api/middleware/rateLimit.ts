@@ -95,3 +95,40 @@ export const seniorHealthIntakeLimiter = rateLimit({
     },
   },
 });
+
+/**
+ * AffordablePlan lead intake.
+ *
+ * Its own bucket, for the reason the others have one: a single server posting
+ * on behalf of many visitors, so every lead in a campaign spike arrives from one
+ * IP and would exhaust `writeLimiter` in seconds. A separate instance from the
+ * other limiters so a spike on one site cannot throttle another --
+ * `express-rate-limit` keeps one counter per instance, and sharing an instance
+ * would share the counter.
+ */
+export const affordablePlanIntakeLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 60,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: {
+    error: { code: "rate_limited", message: "Too many requests. Please retry shortly." },
+  },
+});
+
+/**
+ * Explore Auto Insurance lead intake.
+ *
+ * Its own bucket for the same reason as the others: every lead arrives from the
+ * site's serverless function, so a campaign spike is many visitors behind a
+ * handful of IPs, and a shared counter would let one site throttle another.
+ */
+export const autoInsuranceIntakeLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 60,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: {
+    error: { code: "rate_limited", message: "Too many requests. Please retry shortly." },
+  },
+});
