@@ -142,6 +142,21 @@ const envSchema = z
     ),
 
     /**
+     * Shared secret the Disability Benefit Helps site's serverless function
+     * sends as `x-socialsecurity-signature`.
+     *
+     * Its own value for the reason every producer has one: a leak or rotation
+     * of one must not touch another. Same blank-means-absent handling and
+     * 16-character floor. Outside production an unset secret leaves intake
+     * unauthenticated with a warning; in production `socialSecurityWebhookAuth`
+     * fails closed with a 401.
+     */
+    SOCIALSECURITY_WEBHOOK_SECRET: z.preprocess(
+      (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+      z.string().min(16, "SOCIALSECURITY_WEBHOOK_SECRET must be at least 16 characters.").optional(),
+    ),
+
+    /**
      * Onyx utilization API. The key is sent as-is in the `Authorization`
      * header and never logged. Blank means absent: the endpoint then answers
      * 503 instead of calling Onyx with no credential.

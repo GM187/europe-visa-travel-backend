@@ -12,6 +12,7 @@ import { finalExpenseRouter } from "@/api/routes/finalexpense.routes";
 import { seniorHealthRouter } from "@/api/routes/seniorhealth.routes";
 import { affordablePlanRouter } from "@/api/routes/affordableplan.routes";
 import { autoInsuranceRouter } from "@/api/routes/autoinsurance.routes";
+import { socialSecurityRouter } from "@/api/routes/socialsecurity.routes";
 import { leadsRouter } from "@/api/routes/leads.routes";
 import { onyxRouter } from "@/api/routes/onyx.routes";
 import { healthRouter } from "@/api/routes/health.routes";
@@ -22,6 +23,7 @@ import type { LeadService } from "@/services/lead.service";
 import type { SeniorHealthService } from "@/services/seniorhealth.service";
 import type { AffordablePlanService } from "@/services/affordableplan.service";
 import type { AutoInsuranceService } from "@/services/autoinsurance.service";
+import type { SocialSecurityService } from "@/services/socialsecurity.service";
 import type { OnyxClient } from "@/services/onyx.client";
 
 /**
@@ -37,6 +39,7 @@ export function createApp(
     seniorHealthService?: SeniorHealthService;
     affordablePlanService?: AffordablePlanService;
     autoInsuranceService?: AutoInsuranceService;
+    socialSecurityService?: SocialSecurityService;
     onyxClient?: OnyxClient;
   } = {},
 ): Express {
@@ -114,6 +117,9 @@ export function createApp(
   app.use("/api/v1/seniorhealth/leads", seniorHealthRouter(deps.seniorHealthService));
   app.use("/api/v1/affordableplan/leads", affordablePlanRouter(deps.affordablePlanService));
   app.use("/api/v1/autoinsurance/leads", autoInsuranceRouter(deps.autoInsuranceService));
+  /* Disability Benefit Helps (the social-security site) free case review
+     requests, namespaced by producer like the others. */
+  app.use("/api/v1/socialsecurity/leads", socialSecurityRouter(deps.socialSecurityService));
   app.use("/api/v1/onyx", onyxRouter(deps.onyxClient));
 
   app.use(notFoundHandler);

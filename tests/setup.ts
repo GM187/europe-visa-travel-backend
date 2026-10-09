@@ -18,6 +18,9 @@ process.env.SENIORHEALTH_WEBHOOK_SECRET ??= "test-seniorhealth-secret-0123456789
 /* Distinct again: the Auto Insurance tests assert its secret opens only its
    own intake. */
 process.env.AUTOINSURANCE_WEBHOOK_SECRET ??= "test-autoinsurance-secret-0123456789";
+/* Distinct again: the Social Security tests assert its secret opens only its
+   own intake. */
+process.env.SOCIALSECURITY_WEBHOOK_SECRET ??= "test-socialsecurity-secret-0123456789";
 /* Unit tests never open a connection — the value only has to satisfy the env
    schema. Integration tests override it with TEST_DATABASE_URL. */
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL ?? "postgresql://localhost:5432/evc_test";

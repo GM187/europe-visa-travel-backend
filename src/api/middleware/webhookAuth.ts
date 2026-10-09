@@ -152,3 +152,18 @@ export const autoInsuranceWebhookAuth = createSharedSecretAuth({
   envName: "AUTOINSURANCE_WEBHOOK_SECRET",
   label: "Auto Insurance webhook",
 });
+
+/**
+ * Auth for Disability Benefit Helps lead intake (`x-socialsecurity-signature`).
+ *
+ * Same arrangement as Auto Insurance: the site is static HTML, and its Vercel
+ * serverless function (`api/lead.js`) holds this secret and forwards the free
+ * case review form. The browser never sees it. A static secret proves who is
+ * calling, not that the body was not altered on the way.
+ */
+export const socialSecurityWebhookAuth = createSharedSecretAuth({
+  header: "x-socialsecurity-signature",
+  secret: () => env.SOCIALSECURITY_WEBHOOK_SECRET,
+  envName: "SOCIALSECURITY_WEBHOOK_SECRET",
+  label: "Social Security webhook",
+});

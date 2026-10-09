@@ -132,3 +132,20 @@ export const autoInsuranceIntakeLimiter = rateLimit({
     error: { code: "rate_limited", message: "Too many requests. Please retry shortly." },
   },
 });
+
+/**
+ * Disability Benefit Helps lead intake.
+ *
+ * Its own bucket for the same reason as the others: every lead arrives from the
+ * site's serverless function, so a campaign spike is many visitors behind a
+ * handful of IPs, and a shared counter would let one site throttle another.
+ */
+export const socialSecurityIntakeLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 60,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: {
+    error: { code: "rate_limited", message: "Too many requests. Please retry shortly." },
+  },
+});
