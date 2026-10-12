@@ -123,6 +123,63 @@ describe("POST /api/v1/autoinsurance/leads", () => {
     expect(repository.rows[1]!.isRepeat).toBe(true);
   });
 
+  /* Jornaya LeadiD. It ties the lead to Jornaya's consent recording, but a
+     visitor with an ad blocker sends none: tracking must never cost a lead. */
+  describe("Jornaya LeadiD", () => {
+    const LEADID = "4A1B78B9-0CDC-43A7-98EA-2B680A5313A2";
+
+    it("stores a valid LeadiD with the lead", async () => {
+      const response = await post(validAutoInsurancePayload({ universalLeadId: LEADID }));
+
+      expect(response.status).toBe(201);
+      expect(repository.rows[0]!.universalLeadId).toBe(LEADID);
+    });
+
+    it("stores null, and still accepts the lead, when the LeadiD is missing", async () => {
+      const response = await post(validAutoInsurancePayload());
+
+      expect(response.status).toBe(201);
+      expect(repository.rows[0]!.universalLeadId).toBeNull();
+    });
+
+    it("stores null, and still accepts the lead, for an empty or malformed LeadiD", async () => {
+      const cases: unknown[] = ["", "   ", "not-a-leadid", `${LEADID}0`, LEADID.slice(1), "Z".repeat(36), 12345, {}];
+
+      for (const [i, bad] of cases.entries()) {
+        const response = await post(
+          validAutoInsurancePayload({ submissionId: `malformed-leadid-${i}`, universalLeadId: bad }),
+        );
+        expect(response.status, JSON.stringify(bad)).toBe(201);
+        expect(repository.rows[i]!.universalLeadId, JSON.stringify(bad)).toBeNull();
+      }
+    });
+
+    it("keeps whatever the browser sent in the raw payload", async () => {
+      await post(validAutoInsurancePayload({ universalLeadId: "not-a-leadid" }));
+
+      expect((repository.rows[0]!.rawPayload as Record<string, unknown>).universalLeadId).toBe("not-a-leadid");
+    });
+
+    it("keeps the first LeadiD when a retry of the same submission arrives", async () => {
+      await post(validAutoInsurancePayload({ universalLeadId: LEADID }));
+      const retry = await post(validAutoInsurancePayload({ universalLeadId: "" }));
+
+      expect(retry.status).toBe(200);
+      expect(repository.rows).toHaveLength(1);
+      expect(repository.rows[0]!.universalLeadId).toBe(LEADID);
+    });
+
+    it("returns the LeadiD on the admin detail view but not in the list", async () => {
+      await post(validAutoInsurancePayload({ universalLeadId: LEADID }));
+
+      const detail = await request(app).get(`${INTAKE}/1`).set("x-api-key", API_KEY);
+      expect(detail.body.data.universalLeadId).toBe(LEADID);
+
+      const list = await request(app).get(INTAKE).set("x-api-key", API_KEY);
+      expect(list.body.data[0]).not.toHaveProperty("universalLeadId");
+    });
+  });
+
   it.each([
     ["a missing first name", { firstName: "" }],
     ["a missing last name", { lastName: "" }],

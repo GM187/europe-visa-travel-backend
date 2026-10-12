@@ -16,6 +16,7 @@ import type {
  */
 
 interface StoredLead extends AutoInsuranceLead {
+  universalLeadId: string | null;
   dedupeKey: string;
   rawPayload: unknown;
   consent: CreateAutoInsuranceLead["consent"];
@@ -63,6 +64,7 @@ export function createFakeAutoInsuranceRepository(): AutoInsuranceLeadRepository
         state: input.state,
         createdAt: new Date(),
         isRepeat: rows.some((r) => samePerson(r, input)),
+        universalLeadId: input.universalLeadId,
         rawPayload: input.rawPayload,
         consent: input.consent,
       };

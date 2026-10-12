@@ -1,7 +1,13 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 
-import { cappedText, isoDate, normaliseEmail, normalisePhone } from "@/domain/shared";
+import {
+  cappedText,
+  isoDate,
+  normaliseEmail,
+  normalisePhone,
+  parseUniversalLeadId,
+} from "@/domain/shared";
 
 /**
  * The contract for an Explore Auto Insurance lead (exploreautoinsurance.com).
@@ -116,6 +122,12 @@ export const autoInsuranceWebhookSchema = z.object({
 
   answers: autoInsuranceAnswersSchema,
 
+  /* Jornaya LeadiD, written into the form's hidden `#leadid_token` input by
+     Jornaya's script. `unknown` on purpose: the shape is checked by
+     `parseUniversalLeadId`, which stores null rather than rejecting the lead --
+     an ad blocker that stops the script must never cost a lead. */
+  universalLeadId: z.unknown().optional(),
+
   consent: z.object({
     /* Capped far above the ~600 characters the current wording runs to, and
        NOT truncated with `cappedText` -- see the note at the top of the file. */
@@ -155,6 +167,8 @@ export interface CreateAutoInsuranceLead {
   emailNormalised: string;
   zip: string;
   state: string;
+  /** Jornaya LeadiD, or null when the browser sent none or a malformed one. */
+  universalLeadId: string | null;
   rawPayload: unknown;
   consent: {
     text: string;
@@ -203,6 +217,7 @@ export function toCreateAutoInsuranceLead(
     emailNormalised: normaliseEmail(answers.email),
     zip: answers.zip,
     state: answers.state,
+    universalLeadId: parseUniversalLeadId(payload.universalLeadId).value,
     rawPayload,
 
     consent: {
@@ -252,6 +267,8 @@ export interface AutoInsuranceLeadConsent {
 
 /** A lead with everything attached. Only the detail view needs this much. */
 export interface AutoInsuranceLeadDetail extends AutoInsuranceLead {
+  /** Jornaya LeadiD. Null for leads without one, including every lead from before it was collected. */
+  universalLeadId: string | null;
   consent: AutoInsuranceLeadConsent;
   rawPayload: unknown;
   /** Ids of earlier leads from the same phone number or email, newest first. */

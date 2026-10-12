@@ -34,6 +34,7 @@ interface LeadRow {
 }
 
 interface LeadDetailRow extends LeadRow {
+  universal_leadid: string | null;
   raw_payload: unknown;
   consent_text: string;
   consent_version: string;
@@ -86,6 +87,7 @@ function toLead(row: LeadRow): AutoInsuranceLead {
 function toLeadDetail(row: LeadDetailRow, relatedLeadIds: number[]): AutoInsuranceLeadDetail {
   return {
     ...toLead(row),
+    universalLeadId: row.universal_leadid,
     rawPayload: row.raw_payload,
     relatedLeadIds,
     consent: {
@@ -126,8 +128,9 @@ export const autoInsuranceLeadRepository: AutoInsuranceLeadRepository = {
       const inserted = await client.query<{ id: string }>(
         `INSERT INTO auto_insurance_leads
            (dedupe_key, submitted_at, source, first_name, last_name,
-            phone_raw, phone_e164, email, email_normalised, zip, state, raw_payload)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb)
+            phone_raw, phone_e164, email, email_normalised, zip, state, raw_payload,
+            universal_leadid)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13)
          ON CONFLICT (dedupe_key) DO NOTHING
          RETURNING id`,
         [
@@ -143,6 +146,7 @@ export const autoInsuranceLeadRepository: AutoInsuranceLeadRepository = {
           input.zip,
           input.state,
           JSON.stringify(input.rawPayload),
+          input.universalLeadId,
         ],
       );
 
@@ -195,6 +199,7 @@ export const autoInsuranceLeadRepository: AutoInsuranceLeadRepository = {
   async findById(id) {
     const { rows } = await query<LeadDetailRow>(
       `SELECT ${LEAD_COLUMNS},
+              l.universal_leadid,
               l.raw_payload,
               c.consent_text, c.consent_version, c.consented_at,
               c.ip_address, c.user_agent

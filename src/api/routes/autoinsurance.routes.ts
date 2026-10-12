@@ -55,6 +55,7 @@ function present(lead: AutoInsuranceLead) {
 function presentDetail(lead: AutoInsuranceLeadDetail) {
   return {
     ...present(lead),
+    universalLeadId: lead.universalLeadId,
     relatedLeadIds: lead.relatedLeadIds,
     rawPayload: lead.rawPayload,
     consent: {

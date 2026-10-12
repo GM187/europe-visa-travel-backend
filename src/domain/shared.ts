@@ -72,3 +72,37 @@ export function normalisePhone(value: string): string | null {
 export function normaliseEmail(value: string): string {
   return value.trim().toLowerCase();
 }
+
+/* ------------------------------------------------------------------ leadid */
+
+/*
+ * Jornaya LeadiD, for every producer whose site runs the Jornaya script
+ * (Final Expense Coverage, Explore Auto Insurance).
+ */
+
+/** A Jornaya LeadiD: 36 characters of hex and dashes, in UUID layout. */
+const UNIVERSAL_LEADID_PATTERN = /^[A-Fa-f0-9-]{36}$/;
+
+export type UniversalLeadIdStatus = "valid" | "missing" | "malformed";
+
+/**
+ * Reads the Jornaya LeadiD off the wire without ever failing the lead.
+ *
+ * Tracking is not worth a lost lead, so this is deliberately not a Zod
+ * validator: a missing, empty, non-string or badly shaped value all resolve to
+ * `null` with a status the caller can log, where a validator would 422.
+ */
+export function parseUniversalLeadId(value: unknown): {
+  value: string | null;
+  status: UniversalLeadIdStatus;
+} {
+  if (value === undefined || value === null) return { value: null, status: "missing" };
+  if (typeof value !== "string") return { value: null, status: "malformed" };
+
+  const trimmed = value.trim();
+  if (trimmed === "") return { value: null, status: "missing" };
+
+  return UNIVERSAL_LEADID_PATTERN.test(trimmed)
+    ? { value: trimmed, status: "valid" }
+    : { value: null, status: "malformed" };
+}
