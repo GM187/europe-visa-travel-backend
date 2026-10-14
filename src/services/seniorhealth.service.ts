@@ -6,6 +6,7 @@ import {
   type SeniorHealthLeadStats,
   type SeniorHealthWebhook,
 } from "@/domain/seniorhealth.schema";
+import { parseUniversalLeadId } from "@/domain/shared";
 import { AppError, NotFoundError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import {
@@ -42,6 +43,20 @@ export function createSeniorHealthService(
       rawBody: unknown,
     ): Promise<{ lead: SeniorHealthLead; duplicate: boolean }> {
       const input = toCreateSeniorHealthLead(payload, rawBody);
+
+      /* Never a reason to refuse the lead: it is stored without the token. The
+         value itself is not logged; the verbatim copy is in raw_payload. */
+      const leadId = parseUniversalLeadId(payload.universalLeadId);
+      if (leadId.status !== "valid") {
+        logger.warn(
+          {
+            submissionId: payload.submissionId,
+            source: payload.source,
+            universalLeadIdStatus: leadId.status,
+          },
+          "Senior Health lead has no usable Jornaya LeadiD",
+        );
+      }
 
       try {
         const { lead, duplicate } = await repository.create(input);

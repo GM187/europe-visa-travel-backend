@@ -16,6 +16,7 @@ import type {
  */
 
 interface StoredLead extends SeniorHealthLead {
+  universalLeadId: string | null;
   dedupeKey: string;
   rawPayload: unknown;
   consent: CreateSeniorHealthLead["consent"];
@@ -56,6 +57,7 @@ export function createFakeSeniorHealthRepository(): SeniorHealthLeadRepository &
         /* Phone only, mirroring the SQL: this producer has no email, and the
            null guard is what stops two un-normalisable numbers matching. */
         isRepeat: rows.some((r) => r.phoneE164 !== null && r.phoneE164 === input.phoneE164),
+        universalLeadId: input.universalLeadId,
         rawPayload: input.rawPayload,
         consent: input.consent,
       };

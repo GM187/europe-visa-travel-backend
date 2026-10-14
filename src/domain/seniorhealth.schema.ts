@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 
-import { cappedText, isoDate, normalisePhone } from "@/domain/shared";
+import { cappedText, isoDate, normalisePhone, parseUniversalLeadId } from "@/domain/shared";
 
 /**
  * The contract for a Senior Health Benefits Medicare lead
@@ -88,6 +88,9 @@ export const seniorHealthAnswersSchema = z.object({
 
 export type SeniorHealthAnswers = z.infer<typeof seniorHealthAnswersSchema>;
 
+/* Shared with the other producers that collect a Jornaya LeadiD. */
+export { parseUniversalLeadId, type UniversalLeadIdStatus } from "@/domain/shared";
+
 /* ----------------------------------------------------------------- envelope */
 
 export const seniorHealthWebhookSchema = z.object({
@@ -108,6 +111,12 @@ export const seniorHealthWebhookSchema = z.object({
   source: z.string().trim().min(1, "A source is required.").max(100),
 
   answers: seniorHealthAnswersSchema,
+
+  /* Jornaya LeadiD, written into the form's hidden `#leadid_token` input by
+     Jornaya's script. `unknown` on purpose: the shape is checked by
+     `parseUniversalLeadId`, which stores null rather than rejecting the lead --
+     an ad blocker that stops the script must never cost a lead. */
+  universalLeadId: z.unknown().optional(),
 
   consent: z.object({
     /* Capped far above the ~600 characters the current wording runs to, and
@@ -146,6 +155,8 @@ export interface CreateSeniorHealthLead {
   phoneE164: string | null;
   zip: string;
   state: string;
+  /** Jornaya LeadiD, or null when the browser sent none or a malformed one. */
+  universalLeadId: string | null;
   rawPayload: unknown;
   consent: {
     text: string;
@@ -191,6 +202,7 @@ export function toCreateSeniorHealthLead(
     phoneE164: normalisePhone(answers.phone),
     zip: answers.zip,
     state: answers.state,
+    universalLeadId: parseUniversalLeadId(payload.universalLeadId).value,
     rawPayload,
 
     consent: {
@@ -239,6 +251,9 @@ export interface SeniorHealthLeadConsent {
 
 /** A lead with everything attached. Only the detail view needs this much. */
 export interface SeniorHealthLeadDetail extends SeniorHealthLead {
+  /** Jornaya LeadiD. Null for leads without one, including every lead from
+   *  before it was collected. */
+  universalLeadId: string | null;
   consent: SeniorHealthLeadConsent;
   rawPayload: unknown;
   /** Ids of earlier leads from the same phone number, newest first. */

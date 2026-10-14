@@ -104,6 +104,57 @@ describe("POST /api/v1/seniorhealth/leads", () => {
     expect(repository.rows[1]!.isRepeat).toBe(true);
   });
 
+  /* Jornaya LeadiD. It ties the lead to Jornaya's consent recording, but a
+     visitor with an ad blocker sends none: tracking must never cost a lead.
+     It matters more here than on the other producers -- this form collects no
+     email, so the consent record is the only thing permitting a call or text. */
+  describe("Jornaya LeadiD", () => {
+    const LEADID = "4A1B78B9-0CDC-43A7-98EA-2B680A5313A2";
+
+    it("stores a valid LeadiD with the lead", async () => {
+      const response = await post(validSeniorHealthPayload({ universalLeadId: LEADID }));
+
+      expect(response.status).toBe(201);
+      expect(repository.rows[0]!.universalLeadId).toBe(LEADID);
+    });
+
+    it("stores null, and still accepts the lead, when the LeadiD is missing", async () => {
+      const response = await post(validSeniorHealthPayload());
+
+      expect(response.status).toBe(201);
+      expect(repository.rows[0]!.universalLeadId).toBeNull();
+    });
+
+    it("stores null, and still accepts the lead, for an empty or malformed LeadiD", async () => {
+      const cases: unknown[] = ["", "   ", "not-a-leadid", `${LEADID}0`, LEADID.slice(1), "Z".repeat(36), 12345, {}];
+
+      for (const [i, bad] of cases.entries()) {
+        const response = await post(
+          validSeniorHealthPayload({ submissionId: `malformed-leadid-${i}`, universalLeadId: bad }),
+        );
+        expect(response.status, JSON.stringify(bad)).toBe(201);
+        expect(repository.rows[i]!.universalLeadId, JSON.stringify(bad)).toBeNull();
+      }
+    });
+
+    it("keeps whatever the browser sent in the raw payload", async () => {
+      await post(validSeniorHealthPayload({ universalLeadId: "not-a-leadid" }));
+
+      expect((repository.rows[0]!.rawPayload as Record<string, unknown>).universalLeadId).toBe(
+        "not-a-leadid",
+      );
+    });
+
+    it("keeps the first LeadiD when a retry of the same submission arrives", async () => {
+      await post(validSeniorHealthPayload({ universalLeadId: LEADID }));
+      const retry = await post(validSeniorHealthPayload({ universalLeadId: "" }));
+
+      expect(retry.status).toBe(200);
+      expect(repository.rows).toHaveLength(1);
+      expect(repository.rows[0]!.universalLeadId).toBe(LEADID);
+    });
+  });
+
   it.each([
     ["a missing first name", { firstName: "" }],
     ["a phone number that is not ten digits", { phone: "(307) 555-014" }],
@@ -227,6 +278,14 @@ describe("GET /api/v1/seniorhealth/leads", () => {
     expect(response.status).toBe(200);
     expect(response.body.data.consent.version).toBe("shb-tcpa-2026-09-23");
     expect(response.body.data).toHaveProperty("rawPayload");
+  });
+
+  it("returns the LeadiD on the detail view but never in the list", async () => {
+    const list = await get(INTAKE);
+    expect(list.body.data[0]).not.toHaveProperty("universalLeadId");
+
+    const detail = await get(`${INTAKE}/1`);
+    expect(detail.body.data).toHaveProperty("universalLeadId");
   });
 
   it("answers 404 for a lead that does not exist", async () => {

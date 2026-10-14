@@ -33,6 +33,7 @@ interface LeadRow {
 }
 
 interface LeadDetailRow extends LeadRow {
+  universal_leadid: string | null;
   raw_payload: unknown;
   consent_text: string;
   consent_version: string;
@@ -79,6 +80,7 @@ function toLead(row: LeadRow): SeniorHealthLead {
 function toLeadDetail(row: LeadDetailRow, relatedLeadIds: number[]): SeniorHealthLeadDetail {
   return {
     ...toLead(row),
+    universalLeadId: row.universal_leadid,
     rawPayload: row.raw_payload,
     relatedLeadIds,
     consent: {
@@ -119,8 +121,8 @@ export const seniorHealthLeadRepository: SeniorHealthLeadRepository = {
       const inserted = await client.query<{ id: string }>(
         `INSERT INTO senior_health_leads
            (dedupe_key, submitted_at, source, first_name, last_name,
-            phone_raw, phone_e164, zip, state, raw_payload)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
+            phone_raw, phone_e164, zip, state, raw_payload, universal_leadid)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11)
          ON CONFLICT (dedupe_key) DO NOTHING
          RETURNING id`,
         [
@@ -134,6 +136,7 @@ export const seniorHealthLeadRepository: SeniorHealthLeadRepository = {
           input.zip,
           input.state,
           JSON.stringify(input.rawPayload),
+          input.universalLeadId,
         ],
       );
 
@@ -186,6 +189,7 @@ export const seniorHealthLeadRepository: SeniorHealthLeadRepository = {
   async findById(id) {
     const { rows } = await query<LeadDetailRow>(
       `SELECT ${LEAD_COLUMNS},
+              l.universal_leadid,
               l.raw_payload,
               c.consent_text, c.consent_version, c.consented_at,
               c.ip_address, c.user_agent

@@ -53,6 +53,7 @@ function present(lead: SeniorHealthLead) {
 function presentDetail(lead: SeniorHealthLeadDetail) {
   return {
     ...present(lead),
+    universalLeadId: lead.universalLeadId,
     relatedLeadIds: lead.relatedLeadIds,
     rawPayload: lead.rawPayload,
     consent: {
