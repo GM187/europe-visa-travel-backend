@@ -132,6 +132,84 @@ describe("POST /api/v1/finalexpense/leads", () => {
     });
   });
 
+  /* ActiveProspect TrustedForm. The certificate is the recording of what the
+     visitor saw and did, and the URL is the key to it -- but, exactly like the
+     LeadiD above, a visitor with an ad blocker sends none and one who submits
+     before the script finishes sends none either. Evidence is worth a lot; it
+     is not worth refusing a real lead over. */
+  describe("TrustedForm certificate", () => {
+    const CERT = "https://cert.trustedform.com/2605b7a0a2fef0a16c3a5b0a6b7ad0b5d3e7f9c1";
+
+    it("stores a valid certificate URL with the lead", async () => {
+      const response = await post(validFinalExpensePayload({ trustedFormCertUrl: CERT }));
+
+      expect(response.status).toBe(201);
+      expect(repository.rows[0]!.trustedFormCertUrl).toBe(CERT);
+    });
+
+    it("stores null, and still accepts the lead, when the certificate is missing", async () => {
+      const response = await post(validFinalExpensePayload());
+
+      expect(response.status).toBe(201);
+      expect(repository.rows[0]!.trustedFormCertUrl).toBeNull();
+    });
+
+    /* The host is the part that carries the trust: this value is stored as
+       evidence and followed by a human, so a link to anywhere that is not
+       ActiveProspect must not be stored at all. */
+    it("stores null, and still accepts the lead, for an empty or malformed certificate", async () => {
+      const cases: unknown[] = [
+        "",
+        "   ",
+        "not-a-url",
+        // Plain HTTP, and a look-alike host: both are refused on the host alone.
+        CERT.replace("https:", "http:"),
+        "https://cert.trustedform.com.evil.example/abc123",
+        "https://evil.example/cert.trustedform.com/abc123",
+        // Anything past the id -- a query string or a second path segment.
+        CERT + "?replay=1",
+        CERT + "/extra",
+        // Over the 300-character guard.
+        "https://cert.trustedform.com/" + "a".repeat(400),
+        12345,
+        {},
+      ];
+
+      for (const [i, bad] of cases.entries()) {
+        const response = await post(
+          validFinalExpensePayload({ submissionId: `malformed-cert-${i}`, trustedFormCertUrl: bad }),
+        );
+        expect(response.status, JSON.stringify(bad)).toBe(201);
+        expect(repository.rows[i]!.trustedFormCertUrl, JSON.stringify(bad)).toBeNull();
+      }
+    });
+
+    it("keeps whatever the browser sent in the raw payload", async () => {
+      await post(validFinalExpensePayload({ trustedFormCertUrl: "not-a-url" }));
+
+      expect((repository.rows[0]!.rawPayload as Record<string, unknown>).trustedFormCertUrl).toBe("not-a-url");
+    });
+
+    it("returns the certificate on the admin detail view but not in the list", async () => {
+      await post(validFinalExpensePayload({ trustedFormCertUrl: CERT }));
+
+      const detail = await request(app).get(`${INTAKE}/1`).set("x-api-key", API_KEY);
+      expect(detail.body.data.trustedFormCertUrl).toBe(CERT);
+
+      const list = await request(app).get(INTAKE).set("x-api-key", API_KEY);
+      expect(list.body.data[0]).not.toHaveProperty("trustedFormCertUrl");
+    });
+
+    /* The two certificates are independent: a blocked Jornaya script must not
+       take the TrustedForm certificate down with it, or the reverse. */
+    it("stores the certificate even when the LeadiD is missing", async () => {
+      await post(validFinalExpensePayload({ trustedFormCertUrl: CERT }));
+
+      expect(repository.rows[0]!.trustedFormCertUrl).toBe(CERT);
+      expect(repository.rows[0]!.universalLeadId).toBeNull();
+    });
+  });
+
   it("accepts a payload with no audit block at all", async () => {
     const payload = validFinalExpensePayload();
     delete payload.audit;

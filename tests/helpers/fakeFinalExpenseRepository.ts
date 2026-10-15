@@ -20,6 +20,7 @@ interface StoredLead extends FinalExpenseLead {
   emailNormalised: string;
   dateOfBirth: string;
   universalLeadId: string | null;
+  trustedFormCertUrl: string | null;
   rawPayload: unknown;
   consent: CreateFinalExpenseLead["consent"];
 }
@@ -59,6 +60,7 @@ export function createFakeFinalExpenseRepository(): FinalExpenseLeadRepository &
         dateOfBirth: input.dateOfBirth,
         age: input.age,
         universalLeadId: input.universalLeadId,
+        trustedFormCertUrl: input.trustedFormCertUrl,
         createdAt: new Date(),
         isRepeat: rows.some(
           (r) =>

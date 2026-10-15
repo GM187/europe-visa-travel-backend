@@ -1,7 +1,14 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 
-import { cappedText, isoDate, normaliseEmail, normalisePhone, parseUniversalLeadId } from "@/domain/shared";
+import {
+  cappedText,
+  isoDate,
+  normaliseEmail,
+  normalisePhone,
+  parseTrustedFormCertUrl,
+  parseUniversalLeadId,
+} from "@/domain/shared";
 
 /**
  * The contract for a Final Expense Coverage lead (finalexpensecoverage.us).
@@ -127,6 +134,11 @@ export type FinalExpenseAnswers = z.infer<typeof finalExpenseAnswersSchema>;
    existing imports from this module keep working. */
 export { parseUniversalLeadId, type UniversalLeadIdStatus } from "@/domain/shared";
 
+/* ------------------------------------------------------------- trustedform */
+
+/* Shared with any other producer that runs the TrustedForm script. */
+export { parseTrustedFormCertUrl, type TrustedFormCertUrlStatus } from "@/domain/shared";
+
 /* ----------------------------------------------------------------- envelope */
 
 export const finalExpenseWebhookSchema = z
@@ -152,6 +164,11 @@ export const finalExpenseWebhookSchema = z
     /* Jornaya LeadiD. `unknown` on purpose: shape is checked by
        `parseUniversalLeadId`, which stores null rather than rejecting the lead. */
     universalLeadId: z.unknown().optional(),
+
+    /* TrustedForm certificate URL. `unknown` for the same reason: shape is
+       checked by `parseTrustedFormCertUrl`, which stores null rather than
+       rejecting the lead. */
+    trustedFormCertUrl: z.unknown().optional(),
 
     consent: z.object({
       /* Capped far above the ~700 characters the current wording runs to, and
@@ -222,6 +239,8 @@ export interface CreateFinalExpenseLead {
   age: number;
   /** Jornaya LeadiD, or null when the browser sent none or a malformed one. */
   universalLeadId: string | null;
+  /** TrustedForm certificate URL, or null on the same terms. */
+  trustedFormCertUrl: string | null;
   rawPayload: unknown;
   consent: {
     text: string;
@@ -275,6 +294,7 @@ export function toCreateFinalExpenseLead(
     dateOfBirth: answers.dateOfBirth,
     age: ageOn(dob, payload.receivedAt),
     universalLeadId: parseUniversalLeadId(payload.universalLeadId).value,
+    trustedFormCertUrl: parseTrustedFormCertUrl(payload.trustedFormCertUrl).value,
     rawPayload,
 
     consent: {
@@ -332,6 +352,8 @@ export interface FinalExpenseLeadDetail extends FinalExpenseLead {
   dateOfBirth: string;
   /** Jornaya LeadiD. Null for leads without one. */
   universalLeadId: string | null;
+  /** TrustedForm certificate URL. Null for leads without one. */
+  trustedFormCertUrl: string | null;
   consent: FinalExpenseLeadConsent;
   rawPayload: unknown;
   /** Ids of earlier leads from the same phone or email, newest first. */

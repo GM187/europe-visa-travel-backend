@@ -71,6 +71,27 @@ describeDb("final expense leads (PostgreSQL)", () => {
      serialises a day early on any server west of UTC. The repository formats it
      in SQL instead; this pins that the birthday comes back as the exact string
      that went in, whatever the process timezone. */
+  /* Both certificates travel through the real columns added by migrations 005
+     and 012, and come back on the detail view an operator actually reads. */
+  it("round-trips the Jornaya LeadiD and the TrustedForm certificate", async () => {
+    const LEADID = "4A1B78B9-0CDC-43A7-98EA-2B680A5313A2";
+    const CERT = "https://cert.trustedform.com/2605b7a0a2fef0a16c3a5b0a6b7ad0b5d3e7f9c1";
+
+    const { lead } = await record({ universalLeadId: LEADID, trustedFormCertUrl: CERT });
+    const found = await service.getById(lead.id);
+
+    expect(found.universalLeadId).toBe(LEADID);
+    expect(found.trustedFormCertUrl).toBe(CERT);
+  });
+
+  it("stores both certificates as NULL when the browser sent neither", async () => {
+    const { lead } = await record();
+    const found = await service.getById(lead.id);
+
+    expect(found.universalLeadId).toBeNull();
+    expect(found.trustedFormCertUrl).toBeNull();
+  });
+
   it("returns the date of birth as the exact calendar date stored", async () => {
     const { lead } = await record();
     const found = await service.getById(lead.id);

@@ -36,6 +36,7 @@ interface LeadRow {
 interface LeadDetailRow extends LeadRow {
   date_of_birth: string;
   universal_leadid: string | null;
+  trusted_form_cert_url: string | null;
   raw_payload: unknown;
   consent_text: string;
   consent_version: string;
@@ -86,6 +87,7 @@ function toLeadDetail(row: LeadDetailRow, relatedLeadIds: number[]): FinalExpens
     ...toLead(row),
     dateOfBirth: row.date_of_birth,
     universalLeadId: row.universal_leadid,
+    trustedFormCertUrl: row.trusted_form_cert_url,
     rawPayload: row.raw_payload,
     relatedLeadIds,
     consent: {
@@ -127,8 +129,8 @@ export const finalExpenseLeadRepository: FinalExpenseLeadRepository = {
         `INSERT INTO final_expense_leads
            (dedupe_key, submitted_at, source, first_name, last_name,
             phone_raw, phone_e164, email, email_normalised, zip,
-            date_of_birth, age, raw_payload, universal_leadid)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::date, $12, $13::jsonb, $14)
+            date_of_birth, age, raw_payload, universal_leadid, trusted_form_cert_url)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::date, $12, $13::jsonb, $14, $15)
          ON CONFLICT (dedupe_key) DO NOTHING
          RETURNING id`,
         [
@@ -146,6 +148,7 @@ export const finalExpenseLeadRepository: FinalExpenseLeadRepository = {
           input.age,
           JSON.stringify(input.rawPayload),
           input.universalLeadId,
+          input.trustedFormCertUrl,
         ],
       );
 
@@ -200,6 +203,7 @@ export const finalExpenseLeadRepository: FinalExpenseLeadRepository = {
       `SELECT ${LEAD_COLUMNS},
               TO_CHAR(l.date_of_birth, 'YYYY-MM-DD') AS date_of_birth,
               l.universal_leadid,
+              l.trusted_form_cert_url,
               l.raw_payload,
               c.consent_text, c.consent_version, c.consented_at,
               c.ip_address, c.user_agent

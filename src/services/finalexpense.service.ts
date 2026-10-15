@@ -1,4 +1,5 @@
 import {
+  parseTrustedFormCertUrl,
   parseUniversalLeadId,
   toCreateFinalExpenseLead,
   type FinalExpenseLead,
@@ -51,6 +52,15 @@ export function createFinalExpenseService(
         logger.warn(
           { submissionId: payload.submissionId, source: payload.source, universalLeadIdStatus: leadId.status },
           "Final Expense lead has no usable Jornaya LeadiD",
+        );
+      }
+
+      /* Same rule for the TrustedForm certificate: logged, never fatal. */
+      const certUrl = parseTrustedFormCertUrl(payload.trustedFormCertUrl);
+      if (certUrl.status !== "valid") {
+        logger.warn(
+          { submissionId: payload.submissionId, source: payload.source, trustedFormCertUrlStatus: certUrl.status },
+          "Final Expense lead has no usable TrustedForm certificate",
         );
       }
 

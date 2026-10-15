@@ -106,3 +106,53 @@ export function parseUniversalLeadId(value: unknown): {
     ? { value: trimmed, status: "valid" }
     : { value: null, status: "malformed" };
 }
+
+/* ------------------------------------------------------------- trustedform */
+
+/*
+ * ActiveProspect TrustedForm, for every producer whose site runs the
+ * TrustedForm script (Final Expense Coverage).
+ */
+
+/**
+ * A TrustedForm certificate URL, e.g.
+ * `https://cert.trustedform.com/2605b7a0a2fef0a16c3a5b0a6b7ad0b5d3e7f9c1`.
+ *
+ * The host is pinned rather than accepting any URL. This value is stored as
+ * evidence and is followed by a human — an operator, a buyer, a regulator — so
+ * a link to somewhere that is not ActiveProspect is worse than no link at all.
+ * The id itself is matched loosely: its alphabet is ActiveProspect's to change,
+ * and only the host carries the trust.
+ */
+const TRUSTEDFORM_CERT_URL_PATTERN = /^https:\/\/cert\.trustedform\.com\/[\w.~-]+$/;
+
+/** Well above the ~75 characters a certificate URL runs to; a guard, not a format rule. */
+const TRUSTEDFORM_CERT_URL_MAX = 300;
+
+export type TrustedFormCertUrlStatus = "valid" | "missing" | "malformed";
+
+/**
+ * Reads the TrustedForm certificate URL off the wire without ever failing the
+ * lead.
+ *
+ * Deliberately not a Zod validator, for the same reason as
+ * `parseUniversalLeadId`: a visitor with an ad blocker, or one who submits
+ * before the script has finished, sends no certificate, and a lead with a gap
+ * in its evidence trail is still a lead. Missing, empty, non-string, over-long
+ * and badly shaped values all resolve to `null` with a status the caller can
+ * log, where a validator would 422.
+ */
+export function parseTrustedFormCertUrl(value: unknown): {
+  value: string | null;
+  status: TrustedFormCertUrlStatus;
+} {
+  if (value === undefined || value === null) return { value: null, status: "missing" };
+  if (typeof value !== "string") return { value: null, status: "malformed" };
+
+  const trimmed = value.trim();
+  if (trimmed === "") return { value: null, status: "missing" };
+
+  return trimmed.length <= TRUSTEDFORM_CERT_URL_MAX && TRUSTEDFORM_CERT_URL_PATTERN.test(trimmed)
+    ? { value: trimmed, status: "valid" }
+    : { value: null, status: "malformed" };
+}

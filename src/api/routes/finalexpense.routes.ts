@@ -56,6 +56,7 @@ function presentDetail(lead: FinalExpenseLeadDetail) {
     ...present(lead),
     dateOfBirth: lead.dateOfBirth,
     universalLeadId: lead.universalLeadId,
+    trustedFormCertUrl: lead.trustedFormCertUrl,
     relatedLeadIds: lead.relatedLeadIds,
     rawPayload: lead.rawPayload,
     consent: {
