@@ -162,7 +162,7 @@ describe("POST /api/v1/onyx/utilization", () => {
     expect(response.body.error.code).toBe("onyx_unreachable");
   });
 
-  it("returns 503 without calling Onyx when ONYX_API_KEY is not set", async () => {
+  it("returns 503 without calling Onyx when EVC_ONYX_API_KEY is not set", async () => {
     let called = false;
     const app = appWith(
       async () => {

@@ -26,7 +26,7 @@ import { createOnyxClient, type OnyxClient } from "@/services/onyx.client";
  *   422  The body failed validation here; Onyx was not called.
  *   502  Onyx refused it, or could not be reached.
  *        Body: { error: { code, message, onyxStatus, onyxResponse, requestId } }
- *   503  ONYX_API_KEY is not set on this server.
+ *   503  EVC_ONYX_API_KEY is not set on this server.
  *   504  Onyx did not answer in time.
  */
 

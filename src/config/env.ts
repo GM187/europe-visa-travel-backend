@@ -161,14 +161,14 @@ const envSchema = z
      * and never logged. Blank means absent: the endpoint then answers 503
      * instead of calling Onyx with no credential.
      */
-    ONYX_API_KEY: z.preprocess(
+    EVC_ONYX_API_KEY: z.preprocess(
       (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
       z.string().optional(),
     ),
-    ONYX_API_URL: z.string().url().default("https://api.onyxplatform.com"),
-    ONYX_ORGANIZATION_ID: z.coerce.number().int().positive().default(5),
-    ONYX_SOURCE_ID: z.coerce.number().int().positive().default(1046),
-    ONYX_TIMEOUT_MS: z.coerce.number().int().positive().max(60_000).default(10_000),
+    EVC_ONYX_API_URL: z.string().url().default("https://api.onyxplatform.com"),
+    EVC_ONYX_ORGANIZATION_ID: z.coerce.number().int().positive().default(5),
+    EVC_ONYX_SOURCE_ID: z.coerce.number().int().positive().default(1046),
+    EVC_ONYX_TIMEOUT_MS: z.coerce.number().int().positive().max(60_000).default(10_000),
 
     /** Comma-separated origins allowed to call the API from a browser. */
     CORS_ORIGINS: z.string().default("").transform(csv),

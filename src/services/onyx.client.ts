@@ -5,8 +5,8 @@ import { AppError } from "@/lib/errors";
 /**
  * Calls the Onyx external utilization endpoint:
  *
- *   POST {ONYX_API_URL}/api/v1/external/organizations/{org}/sources/{source}/utilization
- *   X-API-Key: <ONYX_API_KEY>          (the key as-is, no "Bearer" prefix)
+ *   POST {EVC_ONYX_API_URL}/api/v1/external/organizations/{org}/sources/{source}/utilization
+ *   X-API-Key: <EVC_ONYX_API_KEY>          (the key as-is, no "Bearer" prefix)
  *
  * Plain `fetch` rather than axios — Node 20 has it built in, so one POST does
  * not need a new dependency.
@@ -33,11 +33,11 @@ export interface OnyxResponse {
 
 function configFromEnv(): OnyxConfig {
   return {
-    apiKey: env.ONYX_API_KEY,
-    baseUrl: env.ONYX_API_URL,
-    organizationId: env.ONYX_ORGANIZATION_ID,
-    sourceId: env.ONYX_SOURCE_ID,
-    timeoutMs: env.ONYX_TIMEOUT_MS,
+    apiKey: env.EVC_ONYX_API_KEY,
+    baseUrl: env.EVC_ONYX_API_URL,
+    organizationId: env.EVC_ONYX_ORGANIZATION_ID,
+    sourceId: env.EVC_ONYX_SOURCE_ID,
+    timeoutMs: env.EVC_ONYX_TIMEOUT_MS,
   };
 }
 
@@ -52,7 +52,7 @@ export function createOnyxClient(
   return {
     async postUtilization(payload: OnyxUtilizationPayload): Promise<OnyxResponse> {
       if (!config.apiKey) {
-        throw new AppError("Onyx is not configured on this server (ONYX_API_KEY is unset).", {
+        throw new AppError("Onyx is not configured on this server (EVC_ONYX_API_KEY is unset).", {
           status: 503,
           code: "onyx_not_configured",
         });
