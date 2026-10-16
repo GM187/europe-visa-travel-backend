@@ -20,7 +20,7 @@ import { createOnyxClient, type OnyxClient } from "@/services/onyx.client";
  *
  * POST /api/v1/onyx/availability
  *   The same ping, reduced to what a browser may see. For the lead form.
- *   200  { data: { available, phone_number } }
+ *   200  { data: { available } }
  *
  * Both share the failure cases:
  *   422  The body failed validation here; Onyx was not called.
@@ -31,33 +31,34 @@ import { createOnyxClient, type OnyxClient } from "@/services/onyx.client";
  */
 
 /**
- * Onyx answers the ping with its commercial terms attached:
+ * Onyx answers the ping with the transfer number and its commercial terms:
  *
  *   { phone_number, available, duration, bid, billing_type }
  *
  * `bid` is what we pay per call, and `duration` and `billing_type` are the
  * terms that price it. A lead form runs in a browser, so anything it receives
  * is readable in the network tab by anyone who opens the page — publishing our
- * buy rate to every visitor and to competitors. The browser only needs to know
- * whether to show the number, so that is all this returns.
+ * buy rate to every visitor and to competitors.
+ *
+ * `phone_number` is withheld on the same grounds. The browser's question is
+ * only "may I transfer this Lead", which a boolean answers; the number the
+ * transfer goes to is routing we hold, not something to hand to whoever loads
+ * the page. Server-to-server callers that do need it use /utilization.
  *
  * Non-object bodies (Onyx sent text, or nothing) collapse to `available: false`:
- * a response we cannot read is not a confirmed yes, and the caller's question
- * is "may I transfer this Lead" — the safe answer to an unreadable reply is no.
+ * a response we cannot read is not a confirmed yes, and the safe answer to an
+ * unreadable reply is no.
  */
-function publicView(body: unknown): { available: boolean; phone_number: string | null } {
+function publicView(body: unknown): { available: boolean } {
   if (typeof body !== "object" || body === null) {
-    return { available: false, phone_number: null };
+    return { available: false };
   }
 
-  const { available, phone_number: phoneNumber } = body as Record<string, unknown>;
+  const { available } = body as Record<string, unknown>;
 
-  return {
-    available: available === true,
-    // Only alongside a real `available: true` — a number with no agent behind
-    // it is an invitation to transfer a Lead into an empty queue.
-    phone_number: available === true && typeof phoneNumber === "string" ? phoneNumber : null,
-  };
+  // `=== true` and not a truthy check: a string "true", or any other shape
+  // Onyx might send, is not a confirmed yes.
+  return { available: available === true };
 }
 
 export function onyxRouter(client: OnyxClient = createOnyxClient()): Router {

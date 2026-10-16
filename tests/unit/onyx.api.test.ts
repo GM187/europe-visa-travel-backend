@@ -216,26 +216,27 @@ describe("POST /api/v1/onyx/availability", () => {
     expect(JSON.parse(seen?.init.body as string)).toEqual(PAYLOAD);
   });
 
-  it("returns availability and the number, and withholds the commercial terms", async () => {
+  it("answers with availability alone, withholding the number and the terms", async () => {
     const app = appWith(async () => new Response(JSON.stringify(ONYX_ANSWER), { status: 200 }));
 
     const response = await ping(app);
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({
-      data: { available: true, phone_number: "+12603085865" },
-    });
+    expect(response.body).toEqual({ data: { available: true } });
 
-    /* The whole point of this route: our buy rate must not reach a browser.
-       Asserted against the serialised body, so a nested leak fails too. */
+    /* The whole point of this route: neither our buy rate nor the transfer
+       number may reach a browser. Asserted against the serialised body, so a
+       nested leak fails too. */
     const raw = JSON.stringify(response.body);
+    expect(raw).not.toContain("phone_number");
+    expect(raw).not.toContain("2603085865");
     expect(raw).not.toContain("bid");
     expect(raw).not.toContain("10.5");
     expect(raw).not.toContain("duration");
     expect(raw).not.toContain("billing_type");
   });
 
-  it("withholds the phone number when no agents are available", async () => {
+  it("reports unavailable when no agents are available", async () => {
     const app = appWith(
       async () =>
         new Response(JSON.stringify({ ...ONYX_ANSWER, available: false }), { status: 200 }),
@@ -244,7 +245,7 @@ describe("POST /api/v1/onyx/availability", () => {
     const response = await ping(app);
 
     expect(response.status).toBe(200);
-    expect(response.body.data).toEqual({ available: false, phone_number: null });
+    expect(response.body.data).toEqual({ available: false });
   });
 
   it("reports unavailable when Onyx's answer is not readable", async () => {
@@ -253,8 +254,7 @@ describe("POST /api/v1/onyx/availability", () => {
       const response = await ping(app);
 
       expect(response.status).toBe(200);
-      expect(response.body.data.available).toBe(false);
-      expect(response.body.data.phone_number).toBeNull();
+      expect(response.body.data).toEqual({ available: false });
     }
   });
 
@@ -265,7 +265,7 @@ describe("POST /api/v1/onyx/availability", () => {
     );
 
     const response = await ping(app);
-    expect(response.body.data).toEqual({ available: false, phone_number: null });
+    expect(response.body.data).toEqual({ available: false });
   });
 
   it("validates the body exactly as /utilization does", async () => {
