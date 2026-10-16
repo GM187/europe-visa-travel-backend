@@ -6,7 +6,7 @@ import { AppError } from "@/lib/errors";
  * Calls the Onyx external utilization endpoint:
  *
  *   POST {ONYX_API_URL}/api/v1/external/organizations/{org}/sources/{source}/utilization
- *   Authorization: <ONYX_API_KEY>      (the key as-is, no "Bearer" prefix)
+ *   X-API-Key: <ONYX_API_KEY>          (the key as-is, no "Bearer" prefix)
  *
  * Plain `fetch` rather than axios — Node 20 has it built in, so one POST does
  * not need a new dependency.
@@ -63,7 +63,7 @@ export function createOnyxClient(
         response = await fetchImpl(url, {
           method: "POST",
           headers: {
-            Authorization: config.apiKey,
+            "X-API-Key": config.apiKey,
             "Content-Type": "application/json",
             Accept: "application/json",
           },

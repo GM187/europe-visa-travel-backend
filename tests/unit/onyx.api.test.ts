@@ -11,7 +11,7 @@ const CONFIG: OnyxConfig = {
   apiKey: "onyx-test-key-123",
   baseUrl: "https://api.onyxplatform.com",
   organizationId: 5,
-  sourceId: 859,
+  sourceId: 1046,
   timeoutMs: 2_000,
 };
 
@@ -55,11 +55,14 @@ describe("POST /api/v1/onyx/utilization", () => {
     expect(response.body).toEqual({ data: { status: "accepted", id: "abc" } });
 
     expect(seen?.url).toBe(
-      "https://api.onyxplatform.com/api/v1/external/organizations/5/sources/859/utilization",
+      "https://api.onyxplatform.com/api/v1/external/organizations/5/sources/1046/utilization",
     );
     expect(seen?.init.method).toBe("POST");
     const headers = seen?.init.headers as Record<string, string>;
-    expect(headers.Authorization).toBe("onyx-test-key-123");
+    expect(headers["X-API-Key"]).toBe("onyx-test-key-123");
+    // The guide authenticates with X-API-Key only; a stray Authorization
+    // header would be a second credential travelling to a vendor.
+    expect(headers.Authorization).toBeUndefined();
     expect(headers["Content-Type"]).toBe("application/json");
     expect(JSON.parse(seen?.init.body as string)).toEqual(PAYLOAD);
   });
@@ -179,6 +182,110 @@ describe("POST /api/v1/onyx/utilization", () => {
     const app = appWith(async () => new Response("{}", { status: 200 }));
 
     const response = await request(app).post(PATH).send(PAYLOAD);
+    expect(response.status).toBe(401);
+  });
+});
+
+/** What Onyx documents the ping as answering, in full. */
+const ONYX_ANSWER = {
+  phone_number: "+12603085865",
+  available: true,
+  duration: 300,
+  bid: 10.5,
+  billing_type: "duration",
+};
+
+describe("POST /api/v1/onyx/availability", () => {
+  const AVAILABILITY = "/api/v1/onyx/availability";
+
+  const ping = (app: ReturnType<typeof createApp>, body: unknown = PAYLOAD) =>
+    request(app).post(AVAILABILITY).set("x-api-key", API_KEY).send(body as object);
+
+  it("sends the same ping as /utilization", async () => {
+    let seen: { url: string; init: RequestInit } | undefined;
+    const app = appWith(async (url, init) => {
+      seen = { url, init };
+      return new Response(JSON.stringify(ONYX_ANSWER), { status: 200 });
+    });
+
+    await ping(app);
+
+    expect(seen?.url).toBe(
+      "https://api.onyxplatform.com/api/v1/external/organizations/5/sources/1046/utilization",
+    );
+    expect(JSON.parse(seen?.init.body as string)).toEqual(PAYLOAD);
+  });
+
+  it("returns availability and the number, and withholds the commercial terms", async () => {
+    const app = appWith(async () => new Response(JSON.stringify(ONYX_ANSWER), { status: 200 }));
+
+    const response = await ping(app);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      data: { available: true, phone_number: "+12603085865" },
+    });
+
+    /* The whole point of this route: our buy rate must not reach a browser.
+       Asserted against the serialised body, so a nested leak fails too. */
+    const raw = JSON.stringify(response.body);
+    expect(raw).not.toContain("bid");
+    expect(raw).not.toContain("10.5");
+    expect(raw).not.toContain("duration");
+    expect(raw).not.toContain("billing_type");
+  });
+
+  it("withholds the phone number when no agents are available", async () => {
+    const app = appWith(
+      async () =>
+        new Response(JSON.stringify({ ...ONYX_ANSWER, available: false }), { status: 200 }),
+    );
+
+    const response = await ping(app);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual({ available: false, phone_number: null });
+  });
+
+  it("reports unavailable when Onyx's answer is not readable", async () => {
+    for (const body of ["Service Unavailable", "null", '"ok"', "[]"]) {
+      const app = appWith(async () => new Response(body, { status: 200 }));
+      const response = await ping(app);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.available).toBe(false);
+      expect(response.body.data.phone_number).toBeNull();
+    }
+  });
+
+  it("treats a non-boolean `available` as unavailable", async () => {
+    const app = appWith(
+      async () =>
+        new Response(JSON.stringify({ ...ONYX_ANSWER, available: "true" }), { status: 200 }),
+    );
+
+    const response = await ping(app);
+    expect(response.body.data).toEqual({ available: false, phone_number: null });
+  });
+
+  it("validates the body exactly as /utilization does", async () => {
+    let called = false;
+    const app = appWith(async () => {
+      called = true;
+      return new Response("{}", { status: 200 });
+    });
+
+    const response = await ping(app, { lead_phone_number: "1234567890" });
+
+    expect(response.status).toBe(422);
+    expect(response.body.error.details.fieldErrors).toHaveProperty("lead_phone_number");
+    expect(called).toBe(false);
+  });
+
+  it("rejects a request without the API key", async () => {
+    const app = appWith(async () => new Response("{}", { status: 200 }));
+
+    const response = await request(app).post(AVAILABILITY).send(PAYLOAD);
     expect(response.status).toBe(401);
   });
 });

@@ -8,27 +8,65 @@ import { onyxUtilizationSchema, type OnyxUtilizationPayload } from "@/domain/ony
 import { logger } from "@/lib/logger";
 import { createOnyxClient, type OnyxClient } from "@/services/onyx.client";
 
-/**
- * POST /api/v1/onyx/utilization — forwards the body to Onyx and returns Onyx's answer.
+/*
+ * Two views of the same Onyx utilization ping. Neither stores anything, and
+ * both are authenticated with the same `x-api-key` as the rest of this API:
+ * they spend a paid third-party credential, so leaving either open would let
+ * anyone push data into Onyx under our account.
  *
- * Nothing is stored. Authenticated with the same `x-api-key` as the rest of this
- * API: this endpoint spends a paid third-party credential, so leaving it open
- * would let anyone push data into Onyx under our account.
+ * POST /api/v1/onyx/utilization
+ *   Onyx's answer verbatim, commercial terms included. Server-to-server only.
+ *   200  { data: <Onyx's response> }
  *
- *   200  Onyx accepted it.       Body: { data: <Onyx's response> }
+ * POST /api/v1/onyx/availability
+ *   The same ping, reduced to what a browser may see. For the lead form.
+ *   200  { data: { available, phone_number } }
+ *
+ * Both share the failure cases:
  *   422  The body failed validation here; Onyx was not called.
  *   502  Onyx refused it, or could not be reached.
  *        Body: { error: { code, message, onyxStatus, onyxResponse, requestId } }
  *   503  ONYX_API_KEY is not set on this server.
  *   504  Onyx did not answer in time.
  */
+
+/**
+ * Onyx answers the ping with its commercial terms attached:
+ *
+ *   { phone_number, available, duration, bid, billing_type }
+ *
+ * `bid` is what we pay per call, and `duration` and `billing_type` are the
+ * terms that price it. A lead form runs in a browser, so anything it receives
+ * is readable in the network tab by anyone who opens the page — publishing our
+ * buy rate to every visitor and to competitors. The browser only needs to know
+ * whether to show the number, so that is all this returns.
+ *
+ * Non-object bodies (Onyx sent text, or nothing) collapse to `available: false`:
+ * a response we cannot read is not a confirmed yes, and the caller's question
+ * is "may I transfer this Lead" — the safe answer to an unreadable reply is no.
+ */
+function publicView(body: unknown): { available: boolean; phone_number: string | null } {
+  if (typeof body !== "object" || body === null) {
+    return { available: false, phone_number: null };
+  }
+
+  const { available, phone_number: phoneNumber } = body as Record<string, unknown>;
+
+  return {
+    available: available === true,
+    // Only alongside a real `available: true` — a number with no agent behind
+    // it is an invitation to transfer a Lead into an empty queue.
+    phone_number: available === true && typeof phoneNumber === "string" ? phoneNumber : null,
+  };
+}
+
 export function onyxRouter(client: OnyxClient = createOnyxClient()): Router {
   const router = Router();
 
-  router.post(
-    "/utilization",
-    apiKeyAuth,
-    validate(onyxUtilizationSchema),
+  /* One ping, two renderings of the result. The difference between the routes
+     is only what the 200 body carries, so the call, the validation and every
+     failure path are shared rather than written twice and drifting apart. */
+  const handler = (shape: (body: unknown) => unknown) =>
     asyncHandler(async (req, res) => {
       const payload = req.body as OnyxUtilizationPayload;
       const result = await client.postUtilization(payload);
@@ -40,7 +78,7 @@ export function onyxRouter(client: OnyxClient = createOnyxClient()): Router {
       );
 
       if (result.ok) {
-        res.status(200).json({ data: result.body });
+        res.status(200).json({ data: shape(result.body) });
         return;
       }
 
@@ -58,7 +96,20 @@ export function onyxRouter(client: OnyxClient = createOnyxClient()): Router {
           requestId: requestIdOf(req),
         },
       });
-    }),
+    });
+
+  router.post(
+    "/utilization",
+    apiKeyAuth,
+    validate(onyxUtilizationSchema),
+    handler((body) => body),
+  );
+
+  router.post(
+    "/availability",
+    apiKeyAuth,
+    validate(onyxUtilizationSchema),
+    handler(publicView),
   );
 
   return router;
