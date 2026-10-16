@@ -40,9 +40,21 @@ interface SharedSecretAuthOptions {
   envName: string;
   /** Human name of the producer, e.g. "Road Cover webhook". Used in logs and errors. */
   label: string;
+  /**
+   * What a caller is told when the credential is wrong. Defaults to the
+   * webhook wording; an integration that calls its credential an API key
+   * overrides it, so the message names the thing the caller was given.
+   */
+  invalidMessage?: string;
 }
 
-function createSharedSecretAuth({ header, secret, envName, label }: SharedSecretAuthOptions) {
+function createSharedSecretAuth({
+  header,
+  secret,
+  envName,
+  label,
+  invalidMessage = "Missing or invalid webhook signature.",
+}: SharedSecretAuthOptions) {
   return function sharedSecretAuth(req: Request, _res: Response, next: NextFunction): void {
     const expected = secret();
 
@@ -68,7 +80,7 @@ function createSharedSecretAuth({ header, secret, envName, label }: SharedSecret
         { requestId: requestIdOf(req), path: req.path },
         `Rejected ${label} with an invalid signature`,
       );
-      return next(new UnauthorizedError("Missing or invalid webhook signature."));
+      return next(new UnauthorizedError(invalidMessage));
     }
 
     next();
@@ -166,4 +178,25 @@ export const socialSecurityWebhookAuth = createSharedSecretAuth({
   secret: () => env.SOCIALSECURITY_WEBHOOK_SECRET,
   envName: "SOCIALSECURITY_WEBHOOK_SECRET",
   label: "Social Security webhook",
+});
+
+/**
+ * Auth for VoxEnrise lead intake (`x-voxenrise-api-key`).
+ *
+ * Called an API key rather than a signature because that is what the client
+ * was handed and what their integration guide calls it. The mechanism is the
+ * same shared secret as every producer above; only the wording differs.
+ *
+ * Its own header name rather than the `x-api-key` that `apiKeyAuth` reads.
+ * Two different secrets behind one header name is a trap: a developer who
+ * sends the operator key to this endpoint gets a 401 with nothing to
+ * distinguish it from a mistyped key. Same limit as the others — a static
+ * secret proves who is calling, not that the body was not altered in transit.
+ */
+export const voxenriseApiKeyAuth = createSharedSecretAuth({
+  header: "x-voxenrise-api-key",
+  secret: () => env.VOXENRISE_API_KEY,
+  envName: "VOXENRISE_API_KEY",
+  label: "VoxEnrise intake",
+  invalidMessage: "Missing or invalid API key.",
 });

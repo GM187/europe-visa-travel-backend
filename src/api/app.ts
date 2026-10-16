@@ -14,6 +14,7 @@ import { affordablePlanRouter } from "@/api/routes/affordableplan.routes";
 import { autoInsuranceRouter } from "@/api/routes/autoinsurance.routes";
 import { socialSecurityRouter } from "@/api/routes/socialsecurity.routes";
 import { leadsRouter } from "@/api/routes/leads.routes";
+import { voxenriseRouter } from "@/api/routes/voxenrise.routes";
 import { onyxRouter } from "@/api/routes/onyx.routes";
 import { healthRouter } from "@/api/routes/health.routes";
 import { logger } from "@/lib/logger";
@@ -24,6 +25,7 @@ import type { SeniorHealthService } from "@/services/seniorhealth.service";
 import type { AffordablePlanService } from "@/services/affordableplan.service";
 import type { AutoInsuranceService } from "@/services/autoinsurance.service";
 import type { SocialSecurityService } from "@/services/socialsecurity.service";
+import type { VoxenriseService } from "@/services/voxenrise.service";
 import type { OnyxClient } from "@/services/onyx.client";
 
 /**
@@ -40,6 +42,7 @@ export function createApp(
     affordablePlanService?: AffordablePlanService;
     autoInsuranceService?: AutoInsuranceService;
     socialSecurityService?: SocialSecurityService;
+    voxenriseService?: VoxenriseService;
     onyxClient?: OnyxClient;
   } = {},
 ): Express {
@@ -120,6 +123,10 @@ export function createApp(
   /* Disability Benefit Helps (the social-security site) free case review
      requests, namespaced by producer like the others. */
   app.use("/api/v1/socialsecurity/leads", socialSecurityRouter(deps.socialSecurityService));
+  /* VoxEnrise, an external client's phone-number feed. Namespaced by producer
+     like the others, but spelled as one word because that is the path the
+     client's integration guide already documents. */
+  app.use("/api/v1/voxenriseleads", voxenriseRouter(deps.voxenriseService));
   app.use("/api/v1/onyx", onyxRouter(deps.onyxClient));
 
   app.use(notFoundHandler);
